@@ -5,8 +5,8 @@
     "gpu_id": 0,
     "invert_depth": false,
     "data_normalize_factor": 256,
-    "dataset_dir": "/home/bird/data2/dataset/kitti_depth_completion",
-    "rgb_dir": "/home/bird/data2/dataset/kitti_raw",
+    "dataset_dir": "/media/abdel62/Data/KITTI_Depth",
+    "rgb_dir": "/media/abdel62/Data/KITTI_Raw",
     "load_rgb":true,
     "train_on": "full",
     "train_batch_sz": 4,
@@ -19,8 +19,8 @@
     "lr_decay": 0.1,
     "lr_decay_step": 20,
     "enforce_pos_weights": "None",
-    "num_epochs": 60,
+    "num_epochs": 30,
     "save_chkpt_each": 1,
-    "save_out_imgs": true,
+    "save_out_imgs": false,
     "notes_to_self": "Guided depth completion network trained on Depth using the MSELoss"
 }

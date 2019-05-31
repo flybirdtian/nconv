@@ -19,7 +19,7 @@ err_metrics = ['MAE', 'RMSE', 'MRE', 'Delta1', 'Delta2', 'Delta3']
 
 class KittiDepthTrainer(Trainer):
     def __init__(self, net, params, optimizer, objective, lr_scheduler, dataloaders, dataset_sizes,
-             workspace_dir, sets=['train', 'val'], use_load_checkpoint = None):
+             workspace_dir, dataset_name="kitti", sets=['train', 'val'], use_load_checkpoint=None, datasets=None):
         
         # Call the constructor of the parent class (trainer)
         super().__init__(net, optimizer, lr_scheduler, objective, use_gpu=params['use_gpu'], workspace_dir=workspace_dir)
@@ -31,13 +31,14 @@ class KittiDepthTrainer(Trainer):
         
         self.params = params
         self.save_chkpt_each = params['save_chkpt_each']
+        self.dataset_name = dataset_name
         self.sets = sets
         self.save_images = params['save_out_imgs']
         self.load_rgb = params['load_rgb'] if 'load_rgb' in params else False 
-        
+
+        self.datasets = datasets
         
         for s in self.sets: self.stats[s+'_loss'] = []
-                
    
 ####### Training Function #######
 
@@ -89,8 +90,12 @@ class KittiDepthTrainer(Trainer):
         
         loss_meter = {}
         for s in self.sets: loss_meter[s] = AverageMeter()
-          
+
         for s in self.sets:
+            if s == 'train':
+                train_idx = 0
+                input_num = len(self.dataloaders[s])
+
             # Iterate over data.
             for data in self.dataloaders[s]:
                 if self.load_rgb:
@@ -102,20 +107,26 @@ class KittiDepthTrainer(Trainer):
                     inputs_d, C, labels, item_idxs = data
                     inputs_d=inputs_d.to(device) ; C=C.to(device)
                     labels=labels.to(device) 
-                    outputs, cout = self.net(inputs_d, C)                
-                    
-                
+                    outputs, cout = self.net(inputs_d, C)
+
+
                 # Calculate loss for valid pixel in the ground truth
                 loss = self.objective(outputs, labels, cout, self.epoch)
-                              
+
 
                 # backward + optimize only if in training phase
                 if s == 'train':                    
                     loss.backward()   
-                    self.optimizer.step()            
-                
+                    self.optimizer.step()
+
+                    train_idx += 1
+                    if train_idx % 50 == 0:
+                        print('training sample: {}/{}, {}%, loss:{}'.format(train_idx, input_num,
+                                                                            train_idx * 100 / input_num,
+                                                                            loss.item()))
+
                 self.optimizer.zero_grad()
-    
+
                 # statistics
                 loss_meter[s].update(loss.item(), inputs_d.size(0))
             
@@ -157,6 +168,8 @@ class KittiDepthTrainer(Trainer):
         
         device = torch.device('cuda:0' if self.use_gpu else 'cpu')
 
+        save_dir = os.path.join(self.workspace_dir, 'results', self.dataset_name)
+
         with torch.no_grad():
             for s in self.sets:
                 print('Evaluating on [{}] set, Epoch [{}] ! \n'.format(s, str(self.epoch-1)))
@@ -192,8 +205,8 @@ class KittiDepthTrainer(Trainer):
                         labels = 1 / labels
                     outputs[outputs==-1] = 0
                     labels[labels==-1] = 0
-                    outputs *= self.params['data_normalize_factor']/256
-                    labels *= self.params['data_normalize_factor']/256
+                    # outputs *= self.params['data_normalize_factor']/256
+                    # labels *= self.params['data_normalize_factor']/256
                     
                     
                     # Calculate error metrics 
@@ -209,27 +222,25 @@ class KittiDepthTrainer(Trainer):
                             fn = globals()[m]() 
                             error = fn(outputs, labels)
                             err[m].update(error.item(), inputs_d.size(0))
-                    
+                    # print(err['RMSE'].avg)
                     # Save output images (optional)
                     if self.save_images and s in ['selval', 'test']:
                         outputs = outputs.data
 
                         outputs *= 256
-                        
-                        saveTensorToImages(outputs , item_idxs, os.path.join(self.workspace_dir, s+'_output_'+'epoch_'+str(self.epoch-1)))
-                        saveTensorToImages(cout * 255, item_idxs, os.path.join(self.workspace_dir, s+'_cert_'+'epoch_'+str(self.epoch-1)))
+
+                        file_names = [self.datasets[s].get_file_name(item.item()) for item in item_idxs]
+
+                        saveTensorToImages(outputs, file_names, os.path.join(save_dir, s+'_output_'+'epoch_'+str(self.epoch-1)))
+                        # saveTensorToImages(cout * 255, item_idxs, os.path.join(self.workspace_dir, s+'_cert_'+'epoch_'+str(self.epoch-1)))
     
                 print('Evaluation results on [{}]:\n============================='.format(s))
                 print('[{}]: {:.8f}'.format('Loss',  loss_meter[s].avg))
                 for m in err_metrics: print('[{}]: {:.8f}'.format(m,  err[m].avg))
-                            
-                
+
                 # Save evaluation metric to text file 
                 fname = 'error_' + s + '_epoch_' + str(self.epoch-1) + '.txt'
-                with open(os.path.join(self.workspace_dir, fname), 'w') as text_file:
+                with open(os.path.join(save_dir, fname), 'w') as text_file:
                     text_file.write('Evaluation results on [{}], Epoch [{}]:\n==========================================\n'.format(s, str(self.epoch-1)))
                     text_file.write('[{}]: {:.8f}\n'.format('Loss',  loss_meter[s].avg))
                     for m in err_metrics: text_file.write('[{}]: {:.8f}\n'.format(m,  err[m].avg))
-                        
-
-           

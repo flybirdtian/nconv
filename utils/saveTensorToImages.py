@@ -12,6 +12,9 @@ def saveTensorToImages(t, idxs, save_to_path):
     for i in range(t.size(0)):
         im = t[i,:,:,:].detach().data.cpu().numpy() 
         im = np.transpose(im, (1,2,0)).astype(np.uint16)
-        cv2.imwrite(os.path.join(save_to_path, str(idxs[i].data.cpu().numpy()).zfill(10)+'.png'), im, [cv2.IMWRITE_PNG_COMPRESSION, 4] )
+        cv2.imwrite(os.path.join(save_to_path, str(idxs[i])), im,
+                    [cv2.IMWRITE_PNG_COMPRESSION, 4])
+
+        # cv2.imwrite(os.path.join(save_to_path, str(idxs[i].data.cpu().numpy()).zfill(10)+'.png'), im, [cv2.IMWRITE_PNG_COMPRESSION, 4] )
         
         

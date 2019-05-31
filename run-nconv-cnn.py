@@ -19,7 +19,8 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch.optim import lr_scheduler
 
-from dataloader.KittiDepthDataloader import KittiDepthDataloader
+from dataloader.KittiDepthDataloader import get_dataloaders
+from dataloader.KittiDepthDataloader import get_dataloaders
 from modules.losses import ConfLossDecay, SmoothL1Loss, MSELoss
 
 # Fix CUDNN error for non-contiguous inputs
@@ -33,7 +34,9 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-mode', action='store', dest='mode', help='"eval" or "train" mode')
 parser.add_argument('-exp', action='store', dest='exp', help='Experiment name as in workspace directory')
 parser.add_argument('-chkpt', action='store', dest='chkpt', default=-1, type=int, nargs='?', help='Checkpoint number to load')
-parser.add_argument('-set',  action='store', dest='set', default='selval', type=str, nargs='?', help='Which set to evaluate on "val", "selval" or "test"')
+parser.add_argument('-dataset', action='store', dest='dataset', default='kitti', type=str, nargs='?', help='dataset used')
+parser.add_argument('-set',  action='store', dest='set', default='test', type=str, nargs='?',
+                    help='Which set to evaluate on for kitti dataset, choose from "val", "selval" or "test"')
 args = parser.parse_args()
 
 
@@ -53,7 +56,13 @@ with open(os.path.join(exp_dir, 'params.json'), 'r') as fp:
 device = torch.device("cuda:"+str(params['gpu_id']) if torch.cuda.is_available() else "cpu")
     
 # Dataloader for KittiDepth
-dataloaders, dataset_sizes = KittiDepthDataloader(params)
+# modify here
+
+# dataset_name = "ours_20190318"
+# dataset_name = "kitti"
+# dataset_name = "vkitti"
+dataset_name = args.dataset
+dataloaders, dataset_sizes, datasets = get_dataloaders(params, dataset_name=dataset_name)
 
 # Import the network file       
 f = importlib.import_module('network_'+exp)
@@ -62,13 +71,17 @@ model = f.CNN(pos_fn = params['enforce_pos_weights']).to(device)
 # Import the trainer 
 t = importlib.import_module('trainers.'+params['trainer'])
 
-if args.mode == 'train':
-    mode = 'train' # train    eval
-    sets = ['train', 'selval'] #  train  selval   
+if args.mode == 'train' and dataset_name=='kitti':
+    mode = 'train'  # train    eval
+    sets = ['train', 'selval']  # train selval
+    # args.chkpt = None
+elif args.mode == 'train':
+    mode = 'train'
+    sets = ['train']
 elif args.mode == 'eval':
-    mode = 'eval' # train    eval
-    sets = [args.set] #  train  selval   
-     
+    mode = 'eval'  # train  eval
+    sets = [args.set]  # train  selval
+
 
 with torch.cuda.device(params['gpu_id']):
 
@@ -89,8 +102,9 @@ with torch.cuda.device(params['gpu_id']):
     lr_decay = lr_scheduler.StepLR(optimizer, step_size=params['lr_decay_step'], gamma=params['lr_decay'])
 
 
+    # change here, the dataset_name
     mytrainer = t.KittiDepthTrainer(model, params, optimizer, objective, lr_decay, dataloaders, dataset_sizes,
-                 workspace_dir = exp_dir, sets=sets, use_load_checkpoint = args.chkpt  )
+                 workspace_dir=exp_dir, dataset_name=dataset_name, sets=sets, use_load_checkpoint=args.chkpt, datasets=datasets)
 
     if mode == 'train':
         # train the network
