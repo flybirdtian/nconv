@@ -20,7 +20,6 @@ import torch.optim as optim
 from torch.optim import lr_scheduler
 
 from dataloader.KittiDepthDataloader import get_dataloaders
-from dataloader.KittiDepthDataloader import get_dataloaders
 from modules.losses import ConfLossDecay, SmoothL1Loss, MSELoss
 
 # Fix CUDNN error for non-contiguous inputs

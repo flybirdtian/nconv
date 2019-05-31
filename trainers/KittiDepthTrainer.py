@@ -169,6 +169,8 @@ class KittiDepthTrainer(Trainer):
         device = torch.device('cuda:0' if self.use_gpu else 'cpu')
 
         save_dir = os.path.join(self.workspace_dir, 'results', self.dataset_name)
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
 
         with torch.no_grad():
             for s in self.sets:

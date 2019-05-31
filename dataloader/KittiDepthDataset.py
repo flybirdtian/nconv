@@ -124,7 +124,6 @@ class KittiDepthDataset(Dataset):
         # Read RGB images
         rgb = Image.open(rgb_path)
 
-
         # Apply transformations if given
         if self.transform is not None:
             data = self.transform(data)
