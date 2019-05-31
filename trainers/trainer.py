@@ -105,10 +105,10 @@ class Trainer(object):
 
         self.epoch = checkpoint_dict['epoch'] + 1
         self.net.load_state_dict(checkpoint_dict['net'])
-        self.optimizer.load_state_dict(checkpoint_dict['optimizer'])
-        if 'lr_scheduler' in checkpoint_dict: 
-                self.lr_scheduler.load_state_dict(checkpoint_dict['lr_scheduler'])
-                self.lr_scheduler.last_epoch = checkpoint_dict['epoch'] 
+        # self.optimizer.load_state_dict(checkpoint_dict['optimizer'])
+        # if 'lr_scheduler' in checkpoint_dict:
+        #         self.lr_scheduler.load_state_dict(checkpoint_dict['lr_scheduler'])
+        #         self.lr_scheduler.last_epoch = checkpoint_dict['epoch']
         self.stats = checkpoint_dict['stats']
         self.use_gpu = checkpoint_dict['use_gpu']
         
