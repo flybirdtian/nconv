@@ -44,6 +44,8 @@ class VkittiDepthDataset(Dataset):
         self.transform = transform
         self.norm_factor = norm_factor
 
+        self.crop_top = True
+
         self.data = list(sorted(glob.iglob(self.lidar_dir + "/**/" + subset + "/*.png", recursive=True)))
 
     def get_paths(self, base_dir, setname):
@@ -66,6 +68,12 @@ class VkittiDepthDataset(Dataset):
         lidar_path = self.data[item]
         file_names = lidar_path.split('/')
         return file_names[-1]
+
+    def set_top_zero(self, data):
+        # only keep values in 256 pixels from bottom
+        data[0:-256, :] = 0
+
+        return data
 
     def __getitem__(self, item):
         if item < 0 or item >= self.__len__():
@@ -91,6 +99,10 @@ class VkittiDepthDataset(Dataset):
         # Convert to numpy
         data = np.array(data, dtype=np.float16)
         gt = np.array(gt, dtype=np.float16)
+
+        if self.crop_top:
+            data = self.set_top_zero(data)
+            gt = self.set_top_zero(gt)
 
         if self.use_sparsity:
             rand_value = np.random.rand(*data.shape)
